@@ -1,11 +1,10 @@
 export const dynamic = "force-dynamic";
 
-import { deleteProject } from "@/lib/actions/admin/projects";
 import { getProjects } from "@/lib/queries";
 import { ProjectForm } from "@/components/admin/project-form";
-import { RowActions } from "@/components/admin/row-actions";
+import { ProjectsList } from "@/components/admin/projects-list";
 import { PageHeader } from "@/components/layout/page-header";
-import { DataTable, ErrorAlert } from "@/components/ui/data-display";
+import { ErrorAlert } from "@/components/ui/data-display";
 
 export default async function AdminProjectsPage({
   searchParams,
@@ -35,7 +34,7 @@ export default async function AdminProjectsPage({
     <div className="space-y-6">
       <PageHeader
         title="Projects"
-        description="Client projects with budgeted hours and status."
+        description="Pipeline and delivery statuses below; finished work is kept in the completed list."
       />
       {error && <ErrorAlert message={error} />}
       <ProjectForm
@@ -43,74 +42,7 @@ export default async function AdminProjectsPage({
         project={editing}
         clientSuggestions={clientSuggestions}
       />
-      <DataTable
-        rows={items}
-        emptyMessage="No projects yet. Add a project using the form above."
-        columns={[
-          {
-            key: "name",
-            header: "Name",
-            cell: (row) => (
-              <span className="font-medium text-ink">{row.name}</span>
-            ),
-          },
-          {
-            key: "client",
-            header: "Client",
-            cell: (row) => row.client ?? "—",
-          },
-          {
-            key: "status",
-            header: "Status",
-            cell: (row) => (
-              <span className="capitalize">
-                {row.status.replace("_", " ")}
-              </span>
-            ),
-          },
-          {
-            key: "budget",
-            header: "Budget (hrs)",
-            cell: (row) => row.totalHoursBudgeted ?? "—",
-          },
-          {
-            key: "zoho",
-            header: "Zoho",
-            cell: (row) =>
-              row.zohoUrl ? (
-                <a
-                  href={row.zohoUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-teal-dark underline-offset-2 hover:underline"
-                >
-                  Open
-                </a>
-              ) : (
-                "—"
-              ),
-          },
-          {
-            key: "dates",
-            header: "Dates",
-            cell: (row) =>
-              `${row.startDate ?? "—"} → ${row.endDate ?? "—"}`,
-          },
-          {
-            key: "actions",
-            header: "",
-            className: "w-24 text-right",
-            cell: (row) => (
-              <RowActions
-                editHref={`/admin/projects?edit=${row.id}`}
-                deleteAction={deleteProject}
-                recordId={row.id}
-                recordLabel={row.name}
-              />
-            ),
-          },
-        ]}
-      />
+      <ProjectsList projects={items} editingId={editing?.id} />
     </div>
   );
 }

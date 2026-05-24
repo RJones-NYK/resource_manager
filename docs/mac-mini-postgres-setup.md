@@ -151,7 +151,7 @@ Start the app:
 npm run dev
 ```
 
-Open http://localhost:3000 — the home page should show **Database: Connected to Postgres** with a yellow DEV banner at the top.
+Open http://localhost:3000 — the header badge should show **Development · Connected**, and the home page should show **Database: Connected to Postgres**.
 
 ---
 

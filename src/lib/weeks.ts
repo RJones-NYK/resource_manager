@@ -38,6 +38,38 @@ export function addDays(dateStr: string, days: number): string {
 }
 
 /** Monday of the week containing the given date */
+export function todayDateString(): string {
+  const date = new Date();
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+export function currentWeekStart(): string {
+  return toWeekStart(todayDateString());
+}
+
+export type WeekPhase = "past" | "current" | "future";
+
+export function getWeekPhase(weekStart: string, anchorWeekStart?: string): WeekPhase {
+  const anchor = anchorWeekStart ?? currentWeekStart();
+  if (weekStart < anchor) return "past";
+  if (weekStart === anchor) return "current";
+  return "future";
+}
+
+/** Week to scroll to when the anchor week is outside the visible range */
+export function resolvePlannerScrollWeek(
+  weekStarts: string[],
+  anchorWeekStart: string = currentWeekStart(),
+): string {
+  if (weekStarts.length === 0) return anchorWeekStart;
+  if (weekStarts.includes(anchorWeekStart)) return anchorWeekStart;
+  if (anchorWeekStart < weekStarts[0]!) return weekStarts[0]!;
+  return weekStarts[weekStarts.length - 1]!;
+}
+
 export function toWeekStart(dateStr: string): string {
   const date = parseDate(dateStr);
   const day = date.getDay();

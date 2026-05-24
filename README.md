@@ -95,7 +95,7 @@ src/
 
 | Variable | Description |
 |---|---|
-| `APP_ENV` | `development` or `production` — controls DEV banner |
+| `APP_ENV` | `development` or `production` — shown in the header environment badge |
 | `DATABASE_URL` | Postgres connection string |
 
 See `.env.example` for format.

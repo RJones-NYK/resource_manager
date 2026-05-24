@@ -14,19 +14,25 @@ import {
   TextInput,
 } from "@/components/ui/form-fields";
 import { PanelHeader } from "@/components/ui/data-display";
+import {
+  PROJECT_STATUS_DESCRIPTIONS,
+  type ProjectStatus,
+  projectStatusLabel,
+} from "@/lib/project-status";
 
-const statusOptions = [
-  { value: "planned", label: "Planned" },
-  { value: "active", label: "Active" },
-  { value: "on_hold", label: "On hold" },
-  { value: "complete", label: "Complete" },
-];
+const statusOptions: { value: ProjectStatus; label: string }[] = [
+  "pipeline",
+  "planned",
+  "active",
+  "on_hold",
+  "complete",
+].map((value) => ({ value, label: projectStatusLabel(value) }));
 
 type Project = {
   id: string;
   name: string;
   client: string | null;
-  status: "planned" | "active" | "on_hold" | "complete";
+  status: "pipeline" | "planned" | "active" | "on_hold" | "complete";
   startDate: string | null;
   endDate: string | null;
   totalHoursBudgeted: string | null;
@@ -43,6 +49,9 @@ export function ProjectForm({
 }) {
   const router = useRouter();
   const [resetKey, setResetKey] = useState(0);
+  const [status, setStatus] = useState<ProjectStatus>(
+    project?.status ?? "planned",
+  );
   const action = project ? updateProject : createProject;
   const [state, formAction, pending] = useActionState(action, emptyActionState);
 
@@ -52,6 +61,7 @@ export function ProjectForm({
       router.replace("/admin/projects");
     } else {
       setResetKey((key) => key + 1);
+      setStatus("planned");
     }
     router.refresh();
   }, [state.success, project, router]);
@@ -90,10 +100,16 @@ export function ProjectForm({
           <SelectInput
             id="project-status"
             name="status"
-            defaultValue={project?.status ?? "planned"}
+            value={status}
+            onChange={(event) =>
+              setStatus(event.target.value as ProjectStatus)
+            }
             options={statusOptions}
             required
           />
+          <p className="mt-1.5 text-[12px] font-light text-g500">
+            {PROJECT_STATUS_DESCRIPTIONS[status]}
+          </p>
         </div>
         <div>
           <FieldLabel htmlFor="project-start">Start date</FieldLabel>

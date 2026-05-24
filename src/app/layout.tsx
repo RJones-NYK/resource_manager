@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { Roboto } from "next/font/google";
-import { DevBanner } from "@/components/dev-banner";
 import { TopAccentLine } from "@/components/layout/top-accent-line";
 import "./globals.css";
 
@@ -24,7 +23,6 @@ export default function RootLayout({
     <html lang="en-GB">
       <body className={`${roboto.variable} antialiased`}>
         <TopAccentLine />
-        <DevBanner />
         {children}
       </body>
     </html>

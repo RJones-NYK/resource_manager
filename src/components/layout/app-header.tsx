@@ -8,6 +8,10 @@ import {
   CalendarRange,
   Settings2,
 } from "lucide-react";
+import {
+  EnvironmentBadge,
+  type EnvironmentBadgeProps,
+} from "@/components/layout/environment-badge";
 
 function ConstellationOverlay() {
   return (
@@ -67,7 +71,11 @@ function getContextLabel(pathname: string): string {
   return "Resource Manager";
 }
 
-export function AppHeader() {
+export function AppHeader({
+  environmentStatus,
+}: {
+  environmentStatus: EnvironmentBadgeProps;
+}) {
   const pathname = usePathname();
   const contextLabel = getContextLabel(pathname);
 
@@ -90,7 +98,10 @@ export function AppHeader() {
             </span>
           </Link>
 
-          <span className="frosted-pill shrink-0">{contextLabel}</span>
+          <div className="flex shrink-0 items-center gap-2">
+            <span className="frosted-pill">{contextLabel}</span>
+            <EnvironmentBadge {...environmentStatus} />
+          </div>
         </div>
       </header>
 

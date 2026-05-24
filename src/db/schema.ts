@@ -12,6 +12,7 @@ import {
 import { relations } from "drizzle-orm";
 
 export const projectStatusEnum = pgEnum("project_status", [
+  "pipeline",
   "planned",
   "active",
   "on_hold",

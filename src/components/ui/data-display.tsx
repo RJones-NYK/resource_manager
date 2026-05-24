@@ -32,13 +32,22 @@ export function DataTable<T extends { id: string }>({
   columns,
   rows,
   emptyMessage,
+  embedded = false,
 }: {
   columns: Column<T>[];
   rows: T[];
   emptyMessage: string;
+  /** Omit outer card chrome when nested inside another panel */
+  embedded?: boolean;
 }) {
   return (
-    <div className="overflow-hidden rounded-[var(--radius)] border border-g200 bg-surface">
+    <div
+      className={
+        embedded
+          ? undefined
+          : "overflow-hidden rounded-[var(--radius)] border border-g200 bg-surface"
+      }
+    >
       <div className="overflow-x-auto">
         <table className="w-full min-w-[640px] text-left text-[13px]">
           <thead>

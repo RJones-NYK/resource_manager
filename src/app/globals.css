@@ -252,13 +252,47 @@ a {
   outline-offset: 3px;
 }
 
-/* Dev banner */
-.dev-banner {
-  background: var(--teal-muted);
-  color: var(--teal-dark);
-  font-size: 11px;
+/* Environment badge (header) */
+.env-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.15);
+  color: rgba(255, 255, 255, 0.92);
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 10px;
   font-weight: 500;
-  letter-spacing: 0.04em;
-  text-align: center;
-  padding: 6px 1rem;
+  letter-spacing: 0.02em;
+  backdrop-filter: blur(4px);
+  line-height: 1.2;
+}
+
+.env-badge__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.env-badge__dot--ok {
+  background: #86efac;
+  box-shadow: 0 0 0 2px rgba(134, 239, 172, 0.35);
+}
+
+.env-badge__dot--error {
+  background: #fda4af;
+  box-shadow: 0 0 0 2px rgba(253, 164, 175, 0.35);
+}
+
+.env-badge__label {
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+}
+
+.env-badge__sep {
+  margin: 0 3px;
+  font-weight: 400;
+  opacity: 0.75;
 }

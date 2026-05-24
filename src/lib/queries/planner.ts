@@ -8,6 +8,7 @@ import {
 } from "@/lib/planner-out-of-office";
 import { getPlannerYear2026Weeks } from "@/lib/weeks";
 import { getAllocationsInRange } from "./allocations";
+import type { ProjectStatus } from "@/lib/project-status";
 import { getProjects } from "./projects";
 
 export type PlannerAllocation = {
@@ -15,6 +16,7 @@ export type PlannerAllocation = {
   weekStart: string;
   projectId: string;
   projectName: string;
+  projectStatus: ProjectStatus;
   fteAllocated: string;
 };
 
@@ -28,18 +30,36 @@ export type PlannerResource = {
   id: string;
   name: string;
   defaultFte: string;
+  fteHoursPerWeek: string;
   isExternal: boolean;
 };
 
 export type PlannerProject = {
   id: string;
   name: string;
+  status: ProjectStatus;
+};
+
+export type PlannerProjectDetail = PlannerProject & {
+  totalHoursBudgeted: string | null;
+  status: string;
+  client: string | null;
 };
 
 export type ByResourcePlannerData = {
   weeks: ReturnType<typeof getPlannerYear2026Weeks>;
   resources: PlannerResource[];
   projects: PlannerProject[];
+  allocations: PlannerAllocation[];
+  outOfOfficeCells: PlannerOutOfOfficeCell[];
+  rangeStart: string;
+  rangeEnd: string;
+};
+
+export type ByProjectPlannerData = {
+  weeks: ReturnType<typeof getPlannerYear2026Weeks>;
+  resources: PlannerResource[];
+  projects: PlannerProjectDetail[];
   allocations: PlannerAllocation[];
   outOfOfficeCells: PlannerOutOfOfficeCell[];
   rangeStart: string;
@@ -89,17 +109,85 @@ export async function getByResourcePlannerData(): Promise<ByResourcePlannerData>
       id: row.id,
       name: formatResourceName(row.firstName, row.lastName),
       defaultFte: row.defaultFte,
+      fteHoursPerWeek: row.fteHoursPerWeek,
       isExternal: row.isExternal === 1,
     })),
     projects: projectRows.map((row) => ({
       id: row.id,
       name: row.name,
+      status: row.status,
     })),
     allocations: allocationRows.map((row) => ({
       resourceId: row.resourceId,
       weekStart: row.weekStart,
       projectId: row.projectId,
       projectName: row.project.name,
+      projectStatus: row.project.status,
+      fteAllocated: row.fteAllocated,
+    })),
+    outOfOfficeCells,
+  };
+}
+
+export async function getByProjectPlannerData(): Promise<ByProjectPlannerData> {
+  const weeks = getPlannerYear2026Weeks();
+  const rangeStart = weeks[0]?.weekStart ?? "2026-01-05";
+  const rangeEnd = weeks[weeks.length - 1]?.weekStart ?? "2026-12-21";
+
+  const db = getDb();
+
+  const [resourceRows, projectRows, allocationRows, oooRows] = await Promise.all([
+    db.query.resources.findMany({
+      where: eq(resources.isActive, 1),
+      orderBy: [asc(resources.lastName), asc(resources.firstName)],
+    }),
+    getProjects(),
+    getAllocationsInRange(rangeStart, rangeEnd),
+    db.query.outOfOffice.findMany({
+      orderBy: [asc(outOfOffice.startDate)],
+    }),
+  ]);
+
+  const oooSegmentMap = buildOutOfOfficeCells(
+    oooRows.map((row) => ({
+      resourceId: row.resourceId,
+      startDate: row.startDate,
+      endDate: row.endDate,
+    })),
+    weeks.map((week) => week.weekStart),
+  );
+
+  const outOfOfficeCells: PlannerOutOfOfficeCell[] = [];
+  for (const [key, segments] of oooSegmentMap) {
+    const [resourceId, weekStart] = key.split(":");
+    if (!resourceId || !weekStart) continue;
+    outOfOfficeCells.push({ resourceId, weekStart, segments });
+  }
+
+  return {
+    weeks,
+    rangeStart,
+    rangeEnd,
+    resources: resourceRows.map((row) => ({
+      id: row.id,
+      name: formatResourceName(row.firstName, row.lastName),
+      defaultFte: row.defaultFte,
+      fteHoursPerWeek: row.fteHoursPerWeek,
+      isExternal: row.isExternal === 1,
+    })),
+    projects: projectRows.map((row) => ({
+      id: row.id,
+      name: row.name,
+      totalHoursBudgeted: row.totalHoursBudgeted,
+      status: row.status,
+      client: row.client,
+    })),
+    allocations: allocationRows.map((row) => ({
+      resourceId: row.resourceId,
+      weekStart: row.weekStart,
+      projectId: row.projectId,
+      projectName: row.project.name,
+      projectStatus: row.project.status,
       fteAllocated: row.fteAllocated,
     })),
     outOfOfficeCells,

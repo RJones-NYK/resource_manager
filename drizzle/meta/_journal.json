@@ -29,6 +29,13 @@
       "when": 1748361600000,
       "tag": "0003_resource_is_external",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1748448000000,
+      "tag": "0004_project_status_pipeline",
+      "breakpoints": true
     }
   ]
 }

@@ -102,3 +102,7 @@ export function buildOutOfOfficeCells(
   }
   return result;
 }
+
+/** Diagonal stripe overlay used in planner cells for out-of-office */
+export const PLANNER_OOO_STRIPE_CLASS =
+  "bg-[repeating-linear-gradient(-45deg,transparent,transparent_4px,rgba(177,96,142,0.12)_4px,rgba(177,96,142,0.12)_8px)]";

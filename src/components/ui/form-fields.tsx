@@ -107,13 +107,17 @@ export function SelectInput({
   id,
   name,
   defaultValue,
+  value,
+  onChange,
   options,
   required,
   placeholder,
 }: {
   id: string;
-  name: string;
+  name?: string;
   defaultValue?: string;
+  value?: string;
+  onChange?: React.ChangeEventHandler<HTMLSelectElement>;
   options: { value: string; label: string }[];
   required?: boolean;
   placeholder?: string;
@@ -122,7 +126,9 @@ export function SelectInput({
     <select
       id={id}
       name={name}
-      defaultValue={defaultValue ?? ""}
+      defaultValue={value === undefined ? (defaultValue ?? "") : undefined}
+      value={value}
+      onChange={onChange}
       required={required}
       className="input-field"
     >

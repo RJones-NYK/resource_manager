@@ -12,7 +12,7 @@ export async function getAllocationsInRange(
       gte(allocations.weekStart, weekStartFrom),
       lte(allocations.weekStart, weekStartTo),
     ),
-    with: { project: true },
+    with: { project: true, resource: true },
     orderBy: [asc(allocations.weekStart)],
   });
 }
