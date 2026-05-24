@@ -1,7 +1,7 @@
 import { and, asc, eq, gte, lte } from "drizzle-orm";
 import { getDb } from "@/db";
 import { outOfOffice, resources } from "@/db/schema";
-import { formatResourceName } from "@/lib/resources";
+import { formatResourceName, sortResourcesBySeniority } from "@/lib/resources";
 import {
   buildOutOfOfficeCells,
   type OutOfOfficeDaySegment,
@@ -80,7 +80,6 @@ export async function getByResourcePlannerData(): Promise<ByResourcePlannerData>
     db.query.resources.findMany({
       where: eq(resources.isActive, 1),
       with: { role: true },
-      orderBy: [asc(resources.lastName), asc(resources.firstName)],
     }),
     getProjects(),
     getAllocationsInRange(rangeStart, rangeEnd),
@@ -92,6 +91,13 @@ export async function getByResourcePlannerData(): Promise<ByResourcePlannerData>
       orderBy: [asc(outOfOffice.startDate)],
     }),
   ]);
+
+  const sortedResourceRows = sortResourcesBySeniority(
+    resourceRows.map((row) => ({
+      ...row,
+      roleName: row.role?.name ?? null,
+    })),
+  );
 
   const oooSegmentMap = buildOutOfOfficeCells(
     oooRows.map((row) => ({
@@ -113,7 +119,7 @@ export async function getByResourcePlannerData(): Promise<ByResourcePlannerData>
     weeks,
     rangeStart,
     rangeEnd,
-    resources: resourceRows.map((row) => ({
+    resources: sortedResourceRows.map((row) => ({
       id: row.id,
       name: formatResourceName(row.firstName, row.lastName),
       roleName: row.role?.name ?? null,
@@ -149,7 +155,6 @@ export async function getByProjectPlannerData(): Promise<ByProjectPlannerData> {
     db.query.resources.findMany({
       where: eq(resources.isActive, 1),
       with: { role: true },
-      orderBy: [asc(resources.lastName), asc(resources.firstName)],
     }),
     getProjects(),
     getAllocationsInRange(rangeStart, rangeEnd),
@@ -161,6 +166,13 @@ export async function getByProjectPlannerData(): Promise<ByProjectPlannerData> {
       orderBy: [asc(outOfOffice.startDate)],
     }),
   ]);
+
+  const sortedResourceRows = sortResourcesBySeniority(
+    resourceRows.map((row) => ({
+      ...row,
+      roleName: row.role?.name ?? null,
+    })),
+  );
 
   const oooSegmentMap = buildOutOfOfficeCells(
     oooRows.map((row) => ({
@@ -182,7 +194,7 @@ export async function getByProjectPlannerData(): Promise<ByProjectPlannerData> {
     weeks,
     rangeStart,
     rangeEnd,
-    resources: resourceRows.map((row) => ({
+    resources: sortedResourceRows.map((row) => ({
       id: row.id,
       name: formatResourceName(row.firstName, row.lastName),
       roleName: row.role?.name ?? null,
