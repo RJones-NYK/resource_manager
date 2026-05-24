@@ -1,36 +1,264 @@
 @import "tailwindcss";
+@import "../components/ui/form-fields.css";
 
 :root {
-  --background: #f4f6f8;
-  --foreground: #1a2332;
+  /* Brand core */
+  --teal: #00a5a6;
+  --teal-dark: #008a8b;
+  --mid: #80bebb;
+  --charcoal: #646363;
+  --cyan: #00b3d0;
+  --magenta: #b1608e;
+
+  /* UI derived */
+  --teal-soft: rgba(0, 165, 166, 0.1);
+  --teal-muted: #d9f3f3;
+  --magenta-soft: rgba(177, 96, 142, 0.1);
+  --ink: #111827;
+
+  --brand-start: #00a5a6;
+  --brand-mid: #008a8b;
+  --brand-end: #0d9488;
+
+  --g50: #f9fafb;
+  --g100: #f3f4f6;
+  --g200: #e5e7eb;
+  --g500: #6b7280;
+  --g700: #374151;
   --surface: #ffffff;
-  --border: #d8dee6;
-  --accent: #2f6fed;
-  --accent-muted: #e8f0fe;
-  --warning: #b45309;
-  --warning-bg: #fef3c7;
+  --canvas: #f5f7f7;
+
+  --radius: 10px;
+  --btn-radius: 20px;
+  --btn-ghost-radius: 14px;
+  --pad-page: 1.35rem;
+  --pad-card: 1.1rem;
+
+  --fs-body: 14px;
+  --fs-small: 12px;
+  --fs-tiny: 11px;
+  --lh: 1.45;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  --color-teal: var(--teal);
+  --color-teal-dark: var(--teal-dark);
+  --color-teal-soft: var(--teal-soft);
+  --color-teal-muted: var(--teal-muted);
+  --color-mid: var(--mid);
+  --color-charcoal: var(--charcoal);
+  --color-cyan: var(--cyan);
+  --color-magenta: var(--magenta);
+  --color-magenta-soft: var(--magenta-soft);
+  --color-ink: var(--ink);
+  --color-g50: var(--g50);
+  --color-g100: var(--g100);
+  --color-g200: var(--g200);
+  --color-g500: var(--g500);
+  --color-g700: var(--g700);
   --color-surface: var(--surface);
-  --color-border: var(--border);
-  --color-accent: var(--accent);
-  --color-accent-muted: var(--accent-muted);
-  --color-warning: var(--warning);
-  --color-warning-bg: var(--warning-bg);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-canvas: var(--canvas);
+  --font-sans: var(--font-roboto);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: var(--font-geist-sans), system-ui, sans-serif;
+  background: var(--canvas);
+  color: var(--charcoal);
+  font-family: var(--font-roboto), system-ui, sans-serif;
+  font-size: var(--fs-body);
+  font-weight: 300;
+  line-height: var(--lh);
 }
 
 a {
   color: inherit;
   text-decoration: none;
+}
+
+/* Top accent line */
+.top-accent-line {
+  height: 4px;
+  background: linear-gradient(90deg, #00a5a6 0%, #00b3d0 65%, #b1608e 100%);
+}
+
+/* App header gradient */
+.app-header-gradient {
+  background: linear-gradient(135deg, #00a5a6 0%, #008a8b 55%, #0d9488 100%);
+}
+
+/* Frosted context pill (header) */
+.frosted-pill {
+  background: rgba(255, 255, 255, 0.15);
+  color: rgba(255, 255, 255, 0.9);
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 500;
+  backdrop-filter: blur(4px);
+}
+
+/* Context bar pill */
+.ctx-pill {
+  background: var(--teal-soft);
+  color: var(--teal-dark);
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+/* Accent bar cards */
+.accent-card {
+  position: relative;
+  border-radius: var(--radius);
+  border: 1px solid var(--g200);
+  background: var(--surface);
+  padding: var(--pad-card);
+  padding-left: 1.35rem;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.accent-card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 4px;
+  height: 100%;
+  border-radius: var(--radius) 0 0 var(--radius);
+  background: linear-gradient(180deg, var(--teal), var(--cyan));
+}
+
+.accent-card--urgent::before {
+  background: linear-gradient(180deg, var(--magenta), var(--cyan));
+}
+
+.accent-card--error::before {
+  background: var(--magenta);
+}
+
+.accent-card:hover {
+  border-color: rgba(0, 165, 166, 0.35);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+/* Panel header */
+.panel-header {
+  border-left: 3px solid var(--teal);
+  background: var(--g50);
+  border-bottom: 1px solid var(--g200);
+  color: var(--teal-dark);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  padding: 0.6rem 1rem;
+}
+
+/* Buttons */
+.btn-primary {
+  background: linear-gradient(90deg, #00a5a6, #008a8b);
+  border-radius: var(--btn-radius);
+  box-shadow: 0 2px 8px rgba(0, 165, 166, 0.32);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 10px 22px;
+  transition: opacity 0.15s, transform 0.1s, box-shadow 0.15s;
+}
+
+.btn-primary:hover {
+  opacity: 0.92;
+  box-shadow: 0 4px 12px rgba(0, 165, 166, 0.4);
+}
+
+.btn-primary:active {
+  transform: scale(0.98);
+}
+
+.btn-primary:focus-visible {
+  outline: 2px solid var(--teal);
+  outline-offset: 3px;
+}
+
+.btn-ghost {
+  border: 1px solid var(--g200);
+  border-radius: var(--btn-ghost-radius);
+  background: var(--surface);
+  color: var(--g700);
+  font-size: 12px;
+  font-weight: 500;
+  padding: 10px 22px;
+  transition: border-color 0.15s, color 0.15s;
+}
+
+.btn-ghost:hover {
+  border-color: var(--mid);
+  color: var(--teal-dark);
+}
+
+.btn-ghost:focus-visible {
+  outline: 2px solid var(--teal);
+  outline-offset: 3px;
+}
+
+/* Page title */
+.page-title {
+  font-weight: 300;
+  font-size: 1.75rem;
+  letter-spacing: -0.03em;
+  color: var(--ink);
+}
+
+.section-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--g500);
+}
+
+/* KPI values */
+.kpi-value {
+  font-size: 1.65rem;
+  font-weight: 300;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.03em;
+  color: var(--ink);
+}
+
+/* Nav tabs in context bar */
+.nav-tab {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--g500);
+  padding-bottom: 0.5rem;
+  border-bottom: 2px solid transparent;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.nav-tab:hover {
+  color: var(--teal-dark);
+}
+
+.nav-tab--active {
+  color: var(--teal-dark);
+  border-bottom-color: var(--teal);
+}
+
+.nav-tab:focus-visible {
+  outline: 2px solid var(--teal);
+  outline-offset: 3px;
+}
+
+/* Dev banner */
+.dev-banner {
+  background: var(--teal-muted);
+  color: var(--teal-dark);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-align: center;
+  padding: 6px 1rem;
 }

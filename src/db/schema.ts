@@ -28,7 +28,8 @@ export const roles = pgTable("roles", {
 
 export const resources = pgTable("resources", {
   id: uuid("id").defaultRandom().primaryKey(),
-  name: text("name").notNull(),
+  firstName: text("first_name").notNull(),
+  lastName: text("last_name").notNull(),
   roleId: uuid("role_id").references(() => roles.id, { onDelete: "set null" }),
   location: text("location"),
   /** Hours that constitute 1 FTE for this person (e.g. 37.5 UK, 40 US) */
@@ -40,6 +41,8 @@ export const resources = pgTable("resources", {
     .notNull()
     .default("1.0"),
   isActive: integer("is_active").notNull().default(1),
+  /** Contractor or non-Arithmos staff */
+  isExternal: integer("is_external").notNull().default(0),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });
@@ -48,6 +51,7 @@ export const projects = pgTable("projects", {
   id: uuid("id").defaultRandom().primaryKey(),
   name: text("name").notNull(),
   client: text("client"),
+  zohoUrl: text("zoho_url"),
   status: projectStatusEnum("status").notNull().default("planned"),
   startDate: date("start_date"),
   endDate: date("end_date"),

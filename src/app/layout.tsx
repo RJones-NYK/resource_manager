@@ -1,21 +1,17 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
-import { AppNav } from "@/components/app-nav";
+import { Roboto } from "next/font/google";
 import { DevBanner } from "@/components/dev-banner";
+import { TopAccentLine } from "@/components/layout/top-accent-line";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const roboto = Roboto({
   subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
+  weight: ["300", "400", "500", "600", "700"],
+  variable: "--font-roboto",
 });
 
 export const metadata: Metadata = {
-  title: "Resource Manager",
+  title: "Resource Manager | Arithmos",
   description: "Team resource and project allocation management",
 };
 
@@ -26,12 +22,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en-GB">
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+      <body className={`${roboto.variable} antialiased`}>
+        <TopAccentLine />
         <DevBanner />
-        <div className="min-h-screen">
-          <AppNav />
-          <main className="mx-auto max-w-7xl px-6 py-8">{children}</main>
-        </div>
+        {children}
       </body>
     </html>
   );

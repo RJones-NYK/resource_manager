@@ -6,8 +6,8 @@ export function DevBanner() {
   }
 
   return (
-    <div className="bg-warning-bg px-4 py-2 text-center text-sm font-medium text-warning">
-      Development environment — connected to resource_manager_dev
+    <div className="dev-banner" role="status">
+      Development — connected to resource_manager_dev on Mac mini
     </div>
   );
 }

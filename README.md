@@ -30,9 +30,10 @@ cp .env.example .env.local
 # Edit DATABASE_URL with Mac Mini Tailscale hostname + password
 
 npm install
-npm run db:migrate    # apply schema to dev database
-npm run dev           # http://localhost:3000
+npm run dev           # applies pending migrations, then http://localhost:3000
 ```
+
+Migrations run automatically before `npm run dev`, `npm run build`, and `npm run start`. To apply manually: `npm run db:migrate`.
 
 ## Project structure
 
@@ -69,9 +70,10 @@ src/
 
 | Command | Description |
 |---|---|
-| `npm run dev` | Start dev server |
-| `npm run build` | Production build |
-| `npm run db:migrate` | Apply migrations |
+| `npm run dev` | Apply migrations, then start dev server |
+| `npm run build` | Apply migrations (if `DATABASE_URL` set), then production build |
+| `npm run start` | Apply migrations, then start production server |
+| `npm run db:migrate` | Apply migrations only (loads `.env.local`) |
 | `npm run db:generate` | Generate migration from schema changes |
 | `npm run db:studio` | Drizzle Studio (DB browser) |
 
