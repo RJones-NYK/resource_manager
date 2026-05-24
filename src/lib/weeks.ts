@@ -136,9 +136,24 @@ export function generateWeekRange(
   return weeks;
 }
 
-/** Planner view: Jan 2026 through the week containing 27 Dec 2026 */
+/** Planner view: Jan 2026 through the week containing 31 Dec 2027 */
+export const PLANNER_VIEW_START = "2026-01-01";
+export const PLANNER_VIEW_END = "2027-12-31";
+
+export function getPlannerWeeks(): WeekColumn[] {
+  return generateWeekRange(PLANNER_VIEW_START, PLANNER_VIEW_END);
+}
+
+/** @deprecated Use getPlannerWeeks */
 export function getPlannerYear2026Weeks(): WeekColumn[] {
-  return generateWeekRange("2026-01-01", "2026-12-27");
+  return getPlannerWeeks();
+}
+
+export function plannerViewRangeLabel(weeks: WeekColumn[]): string {
+  if (weeks.length === 0) return "";
+  const start = weeks[0]!.monthYearLabel;
+  const end = weeks[weeks.length - 1]!.monthYearLabel;
+  return start === end ? start : `${start} – ${end}`;
 }
 
 export function weekRangeLabel(weekStarts: string[]): string {

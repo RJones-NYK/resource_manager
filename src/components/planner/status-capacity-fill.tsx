@@ -31,15 +31,25 @@ function fteByStatus(allocations: PlannerAllocation[]): Map<ProjectStatus, numbe
 export function StatusCapacityFill({
   allocations,
   capacity,
+  leftOffsetPercent = 0,
+  loadLevel: loadLevelOverride,
+  loadContext,
 }: {
   allocations: PlannerAllocation[];
   capacity: number;
+  /** Horizontal offset after out-of-office (percent of cell width). */
+  leftOffsetPercent?: number;
+  /** When set, drives warning/notice colouring (e.g. resource total on by-project). */
+  loadLevel?: FteLoadLevel;
+  loadContext?: { scopeFte?: number; scopeLabel?: string };
 }) {
   const totalFte = totalAllocatedFte(allocations);
   if (totalFte <= 0 || capacity <= 0) return null;
 
-  const loadLevel = fteLoadLevel(totalFte);
-  const fillWidthPercent = Math.min((totalFte / capacity) * 100, 100);
+  const loadLevel = loadLevelOverride ?? fteLoadLevel(totalFte);
+  const oooOffset = Math.max(0, Math.min(leftOffsetPercent, 100));
+  const fillWidthPercent = Math.min((totalFte / capacity) * 100, 100 - oooOffset);
+  if (fillWidthPercent <= 0) return null;
   const byStatus = fteByStatus(allocations);
 
   const segments: { status: ProjectStatus; widthPercent: number }[] = [];
@@ -62,15 +72,23 @@ export function StatusCapacityFill({
 
   return (
     <span
-      className="pointer-events-none absolute inset-y-0 left-0 z-0 overflow-hidden"
-      style={{ width: `${fillWidthPercent}%` }}
-      title={`${totalFte.toFixed(1)} / ${capacity.toFixed(1)} FTE — ${breakdown}${
+      className="pointer-events-none absolute inset-y-0 z-0 overflow-hidden"
+      style={{ left: `${oooOffset}%`, width: `${fillWidthPercent}%` }}
+      title={[
+        `${totalFte.toFixed(1)} / ${capacity.toFixed(1)} FTE on this view — ${breakdown}`,
+        loadContext?.scopeFte != null &&
+        loadContext.scopeLabel &&
+        loadContext.scopeFte < totalFte - 0.001
+          ? `${loadContext.scopeFte.toFixed(1)} FTE on ${loadContext.scopeLabel} in this cell`
+          : null,
         loadLevel === "warning"
-          ? " (over allocated)"
+          ? "Over allocated across all projects"
           : loadLevel === "notice"
-            ? " (high utilisation)"
-            : ""
-      }`}
+            ? "High utilisation across all projects"
+            : null,
+      ]
+        .filter(Boolean)
+        .join(". ")}
     >
       {segments.map(({ status, widthPercent }, index) => {
         const leftPercent = segments

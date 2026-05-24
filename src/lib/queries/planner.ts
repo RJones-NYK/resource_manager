@@ -6,7 +6,7 @@ import {
   buildOutOfOfficeCells,
   type OutOfOfficeDaySegment,
 } from "@/lib/planner-out-of-office";
-import { getPlannerYear2026Weeks } from "@/lib/weeks";
+import { getPlannerWeeks } from "@/lib/weeks";
 import { getAllocationsInRange } from "./allocations";
 import type { ProjectStatus } from "@/lib/project-status";
 import { getProjects } from "./projects";
@@ -29,6 +29,7 @@ export type PlannerOutOfOfficeCell = {
 export type PlannerResource = {
   id: string;
   name: string;
+  roleName: string | null;
   defaultFte: string;
   fteHoursPerWeek: string;
   isExternal: boolean;
@@ -44,10 +45,12 @@ export type PlannerProjectDetail = PlannerProject & {
   totalHoursBudgeted: string | null;
   status: string;
   client: string | null;
+  startDate: string | null;
+  endDate: string | null;
 };
 
 export type ByResourcePlannerData = {
-  weeks: ReturnType<typeof getPlannerYear2026Weeks>;
+  weeks: ReturnType<typeof getPlannerWeeks>;
   resources: PlannerResource[];
   projects: PlannerProject[];
   allocations: PlannerAllocation[];
@@ -57,7 +60,7 @@ export type ByResourcePlannerData = {
 };
 
 export type ByProjectPlannerData = {
-  weeks: ReturnType<typeof getPlannerYear2026Weeks>;
+  weeks: ReturnType<typeof getPlannerWeeks>;
   resources: PlannerResource[];
   projects: PlannerProjectDetail[];
   allocations: PlannerAllocation[];
@@ -67,15 +70,16 @@ export type ByProjectPlannerData = {
 };
 
 export async function getByResourcePlannerData(): Promise<ByResourcePlannerData> {
-  const weeks = getPlannerYear2026Weeks();
+  const weeks = getPlannerWeeks();
   const rangeStart = weeks[0]?.weekStart ?? "2026-01-05";
-  const rangeEnd = weeks[weeks.length - 1]?.weekStart ?? "2026-12-21";
+  const rangeEnd = weeks[weeks.length - 1]?.weekStart ?? "2027-12-27";
 
   const db = getDb();
 
   const [resourceRows, projectRows, allocationRows, oooRows] = await Promise.all([
     db.query.resources.findMany({
       where: eq(resources.isActive, 1),
+      with: { role: true },
       orderBy: [asc(resources.lastName), asc(resources.firstName)],
     }),
     getProjects(),
@@ -112,6 +116,7 @@ export async function getByResourcePlannerData(): Promise<ByResourcePlannerData>
     resources: resourceRows.map((row) => ({
       id: row.id,
       name: formatResourceName(row.firstName, row.lastName),
+      roleName: row.role?.name ?? null,
       defaultFte: row.defaultFte,
       fteHoursPerWeek: row.fteHoursPerWeek,
       isExternal: row.isExternal === 1,
@@ -134,15 +139,16 @@ export async function getByResourcePlannerData(): Promise<ByResourcePlannerData>
 }
 
 export async function getByProjectPlannerData(): Promise<ByProjectPlannerData> {
-  const weeks = getPlannerYear2026Weeks();
+  const weeks = getPlannerWeeks();
   const rangeStart = weeks[0]?.weekStart ?? "2026-01-05";
-  const rangeEnd = weeks[weeks.length - 1]?.weekStart ?? "2026-12-21";
+  const rangeEnd = weeks[weeks.length - 1]?.weekStart ?? "2027-12-27";
 
   const db = getDb();
 
   const [resourceRows, projectRows, allocationRows, oooRows] = await Promise.all([
     db.query.resources.findMany({
       where: eq(resources.isActive, 1),
+      with: { role: true },
       orderBy: [asc(resources.lastName), asc(resources.firstName)],
     }),
     getProjects(),
@@ -179,6 +185,7 @@ export async function getByProjectPlannerData(): Promise<ByProjectPlannerData> {
     resources: resourceRows.map((row) => ({
       id: row.id,
       name: formatResourceName(row.firstName, row.lastName),
+      roleName: row.role?.name ?? null,
       defaultFte: row.defaultFte,
       fteHoursPerWeek: row.fteHoursPerWeek,
       isExternal: row.isExternal === 1,
@@ -189,6 +196,8 @@ export async function getByProjectPlannerData(): Promise<ByProjectPlannerData> {
       totalHoursBudgeted: row.totalHoursBudgeted,
       status: row.status,
       client: row.client,
+      startDate: row.startDate,
+      endDate: row.endDate,
     })),
     allocations: allocationRows.map((row) => ({
       resourceId: row.resourceId,

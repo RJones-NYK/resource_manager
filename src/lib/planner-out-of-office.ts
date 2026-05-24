@@ -57,6 +57,17 @@ export function mergeWeekdayIndices(indices: number[]): OutOfOfficeDaySegment[] 
   return segments;
 }
 
+export function totalOutOfOfficeDays(segments: OutOfOfficeDaySegment[]): number {
+  return segments.reduce((sum, segment) => sum + segment.dayCount, 0);
+}
+
+/** Share of the planner week (Mon–Fri) taken by out-of-office. */
+export function outOfOfficeWidthPercent(segments: OutOfOfficeDaySegment[]): number {
+  const days = totalOutOfOfficeDays(segments);
+  if (days <= 0) return 0;
+  return Math.min((days / PLANNER_WORK_DAYS) * 100, 100);
+}
+
 export function describeOutOfOfficeSegments(segments: OutOfOfficeDaySegment[]): string {
   if (segments.length === 0) return "Out of office";
 

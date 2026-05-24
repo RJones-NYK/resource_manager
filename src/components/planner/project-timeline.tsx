@@ -9,15 +9,28 @@ import {
   plannerWeekCellClassName,
   usePlannerWeekPhases,
 } from "@/components/planner/planner-timeline-scroll";
-import {
-  MonthYearHeaderRow,
-  WeekHeaderCell,
-} from "@/components/planner/resource-timeline";
+import { CapacityLoadIndicator, CapacityLoadLegend } from "@/components/planner/capacity-load-indicator";
 import {
   ProjectStatusBadge,
   ProjectStatusLegend,
 } from "@/components/planner/project-status-legend";
-import { ResourceExternalTag } from "@/components/ui/resource-tags";
+import {
+  CellEditAffordance,
+  MonthYearHeaderRow,
+  WeekHeaderCell,
+} from "@/components/planner/resource-timeline";
+import { StatusCapacityFill } from "@/components/planner/status-capacity-fill";
+import { PlannerResourceLabel } from "@/components/planner/planner-resource-label";
+import {
+  fteLoadLabel,
+  fteLoadLevelForResourceWeek,
+  outOfOfficeFteEquivalent,
+  totalAllocatedFte,
+  totalResourceLoadFte,
+} from "@/lib/planner-capacity";
+import { outOfOfficeWidthPercent, type OutOfOfficeDaySegment } from "@/lib/planner-out-of-office";
+import { buildProjectWeekSpans } from "@/lib/planner-project-span";
+import { plannerViewRangeLabel } from "@/lib/weeks";
 import { projectStatusLabel } from "@/lib/project-status";
 import { FieldLabel, SelectInput } from "@/components/ui/form-fields";
 import type {
@@ -26,20 +39,8 @@ import type {
   PlannerProjectDetail,
   PlannerResource,
 } from "@/lib/queries/planner";
-import {
-  describeOutOfOfficeSegments,
-  PLANNER_OOO_STRIPE_CLASS,
-  PLANNER_WORK_DAYS,
-  type OutOfOfficeDaySegment,
-} from "@/lib/planner-out-of-office";
-
-const RESOURCE_PALETTE = [
-  { chip: "bg-teal-soft text-teal-dark border-teal/30" },
-  { chip: "bg-cyan/10 text-cyan border-cyan/30" },
-  { chip: "bg-magenta-soft text-magenta border-magenta/30" },
-  { chip: "bg-g100 text-g700 border-g200" },
-  { chip: "bg-teal-muted text-teal-dark border-teal/20" },
-] as const;
+import { PlannerOooFill } from "@/components/planner/planner-ooo-fill";
+import { ProjectSpanRow } from "@/components/planner/project-span-row";
 
 type Selection = {
   resourceId: string;
@@ -66,11 +67,6 @@ function weekRangeBetween(
   return weekStarts.slice(start, end + 1);
 }
 
-function resourceColorIndex(resourceId: string, resourceIds: string[]) {
-  const index = resourceIds.indexOf(resourceId);
-  return index >= 0 ? index % RESOURCE_PALETTE.length : 0;
-}
-
 function allocationHours(fte: string, fteHoursPerWeek: string): number {
   return Number(fte) * Number(fteHoursPerWeek);
 }
@@ -91,66 +87,14 @@ function formatHours(value: number): string {
   return value % 1 === 0 ? String(value) : value.toFixed(1);
 }
 
-function OooSegments({ segments }: { segments: OutOfOfficeDaySegment[] }) {
-  if (segments.length === 0) return null;
-
-  return (
-    <>
-      {segments.map((segment) => {
-        const leftPercent = (segment.startDayIndex / PLANNER_WORK_DAYS) * 100;
-        const widthPercent = (segment.dayCount / PLANNER_WORK_DAYS) * 100;
-
-        return (
-          <span
-            key={`${segment.startDayIndex}-${segment.dayCount}`}
-            className="pointer-events-none absolute inset-y-0 z-[1] overflow-hidden"
-            style={{ left: `${leftPercent}%`, width: `${widthPercent}%` }}
-            title={describeOutOfOfficeSegments([segment])}
-          >
-            <span className="block h-full bg-magenta/10">
-              <span className={`block h-full ${PLANNER_OOO_STRIPE_CLASS}`} />
-            </span>
-          </span>
-        );
-      })}
-    </>
-  );
-}
-
-function AllocationChip({
-  allocation,
-  resourceName,
-  colorClass,
-  onSelect,
-}: {
-  allocation: PlannerAllocation;
-  resourceName: string;
-  colorClass: string;
-  onSelect: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onPointerDown={(event) => event.stopPropagation()}
-      onClick={(event) => {
-        event.stopPropagation();
-        onSelect();
-      }}
-      className={`mb-0.5 block w-full truncate rounded border px-1 py-0.5 text-left text-[10px] font-medium leading-tight ${colorClass}`}
-      title={`${resourceName} — ${allocation.fteAllocated} FTE`}
-    >
-      <span className="block truncate">{resourceName}</span>
-      <span className="font-light opacity-80">{allocation.fteAllocated}</span>
-    </button>
-  );
-}
-
 function BudgetSummary({
   project,
   totalBurned,
+  plannerRangeLabel,
 }: {
   project: PlannerProjectDetail;
   totalBurned: number;
+  plannerRangeLabel: string;
 }) {
   const budget = project.totalHoursBudgeted
     ? Number(project.totalHoursBudgeted)
@@ -162,7 +106,7 @@ function BudgetSummary({
         <ProjectStatusBadge status={project.status} />
         <p>
           <span className="font-medium text-ink">{formatHours(totalBurned)} h</span> planned
-          in 2026 — no budget set for this project.
+          in {plannerRangeLabel} — no budget set for this project.
         </p>
       </div>
     );
@@ -205,15 +149,14 @@ export function ProjectTimeline({
   const router = useRouter();
   const searchParams = useSearchParams();
   const { scrollWeekStart, getPhase } = usePlannerWeekPhases(data.weeks);
+  const plannerRangeLabel = useMemo(
+    () => plannerViewRangeLabel(data.weeks),
+    [data.weeks],
+  );
 
   const weekStarts = useMemo(
     () => data.weeks.map((week) => week.weekStart),
     [data.weeks],
-  );
-
-  const resourceIds = useMemo(
-    () => data.resources.map((resource) => resource.id),
-    [data.resources],
   );
 
   const resourcesById = useMemo(() => {
@@ -239,6 +182,15 @@ export function ProjectTimeline({
     [data.projects, selectedProjectId],
   );
 
+  const projectWeekSpansByWeek = useMemo(() => {
+    const spans = buildProjectWeekSpans(
+      weekStarts,
+      selectedProject?.startDate ?? null,
+      selectedProject?.endDate ?? null,
+    );
+    return new Map(spans.map((span) => [span.weekStart, span]));
+  }, [weekStarts, selectedProject?.startDate, selectedProject?.endDate]);
+
   const projectAllocations = useMemo(
     () => data.allocations.filter((allocation) => allocation.projectId === selectedProjectId),
     [data.allocations, selectedProjectId],
@@ -254,6 +206,17 @@ export function ProjectTimeline({
     }
     return map;
   }, [projectAllocations]);
+
+  const resourceAllocationsByCell = useMemo(() => {
+    const map = new Map<string, PlannerAllocation[]>();
+    for (const allocation of data.allocations) {
+      const key = cellKey(allocation.resourceId, allocation.weekStart);
+      const existing = map.get(key) ?? [];
+      existing.push(allocation);
+      map.set(key, existing);
+    }
+    return map;
+  }, [data.allocations]);
 
   const oooSegmentsByCell = useMemo(() => {
     const map = new Map<string, OutOfOfficeDaySegment[]>();
@@ -428,7 +391,11 @@ export function ProjectTimeline({
         </div>
         {selectedProject && (
           <div className="min-w-[200px] flex-1 rounded-[var(--radius)] border border-g200 bg-g50/80 px-4 py-3">
-            <BudgetSummary project={selectedProject} totalBurned={totalBurned} />
+            <BudgetSummary
+              project={selectedProject}
+              totalBurned={totalBurned}
+              plannerRangeLabel={plannerRangeLabel}
+            />
           </div>
         )}
       </div>
@@ -465,16 +432,27 @@ export function ProjectTimeline({
               </tr>
             </thead>
             <tbody>
+              {selectedProject ? (
+                <ProjectSpanRow
+                  weeks={data.weeks}
+                  spansByWeek={projectWeekSpansByWeek}
+                  startDate={selectedProject.startDate}
+                  endDate={selectedProject.endDate}
+                  status={selectedProject.status}
+                  getPhase={getPhase}
+                />
+              ) : null}
               {data.resources.map((resource) => (
                 <tr key={resource.id} className="border-b border-g200/80">
                   <th
                     scope="row"
                     className="sticky left-0 z-10 border-r border-g200 bg-surface px-4 py-2 text-left font-medium text-ink"
                   >
-                    <span className="flex flex-wrap items-center gap-1.5">
-                      {resource.name}
-                      {resource.isExternal ? <ResourceExternalTag /> : null}
-                    </span>
+                    <PlannerResourceLabel
+                      name={resource.name}
+                      roleName={resource.roleName}
+                      isExternal={resource.isExternal}
+                    />
                   </th>
                   {data.weeks.map((week) => {
                     const key = cellKey(resource.id, week.weekStart);
@@ -482,11 +460,39 @@ export function ProjectTimeline({
                     const weekPhase = getPhase(week.weekStart);
                     const oooSegments = oooSegmentsByCell.get(key) ?? [];
                     const cellAllocations = allocationsByCell.get(key) ?? [];
+                    const resourceAllocations = resourceAllocationsByCell.get(key) ?? [];
+                    const capacity = Number(resource.defaultFte) || 1;
+                    const projectFte = totalAllocatedFte(cellAllocations);
+                    const allocatedFte = totalAllocatedFte(resourceAllocations);
+                    const oooFte = outOfOfficeFteEquivalent(oooSegments, capacity);
+                    const totalLoadFte = totalResourceLoadFte(
+                      resourceAllocations,
+                      oooSegments,
+                      capacity,
+                    );
+                    const loadLevel = fteLoadLevelForResourceWeek(
+                      resourceAllocations,
+                      oooSegments,
+                      capacity,
+                    );
+                    const loadContext = selectedProject
+                      ? {
+                          scopeFte: projectFte,
+                          scopeLabel: selectedProject.name,
+                          allocatedFte,
+                          oooFte,
+                        }
+                      : { allocatedFte, oooFte };
+                    const oooWidthPercent = outOfOfficeWidthPercent(oooSegments);
 
                     return (
                       <td
                         key={week.weekStart}
-                        className={plannerWeekCellClassName(weekPhase, isSelected)}
+                        className={plannerWeekCellClassName(
+                          weekPhase,
+                          isSelected,
+                          isSelected ? "normal" : loadLevel,
+                        )}
                         onPointerDown={() =>
                           handlePointerDown(resource.id, resource.name, week.weekStart)
                         }
@@ -494,31 +500,36 @@ export function ProjectTimeline({
                           handlePointerEnter(resource.id, week.weekStart)
                         }
                       >
-                        <OooSegments segments={oooSegments} />
-                        <div className="relative z-[2] min-h-[36px]">
-                          {cellAllocations.map((allocation) => {
-                            const colorIndex = resourceColorIndex(
-                              allocation.resourceId,
-                              resourceIds,
-                            );
-                            const palette = RESOURCE_PALETTE[colorIndex]!;
-                            return (
-                              <AllocationChip
-                                key={`${allocation.resourceId}-${allocation.fteAllocated}`}
-                                allocation={allocation}
-                                resourceName={resource.name}
-                                colorClass={palette.chip}
-                                onSelect={() =>
-                                  handleAllocationClick(
-                                    resource.id,
-                                    resource.name,
-                                    week.weekStart,
-                                    allocation,
-                                  )
-                                }
-                              />
-                            );
-                          })}
+                        <PlannerOooFill segments={oooSegments} />
+                        <StatusCapacityFill
+                          allocations={cellAllocations}
+                          capacity={capacity}
+                          leftOffsetPercent={oooWidthPercent}
+                          loadLevel={loadLevel}
+                          loadContext={loadContext}
+                        />
+                        <CapacityLoadIndicator
+                          level={loadLevel}
+                          totalFte={totalLoadFte}
+                          title={fteLoadLabel(loadLevel, totalLoadFte, loadContext)}
+                        />
+                        <div className="group/cell relative z-[2] min-h-[36px]">
+                          <CellEditAffordance
+                            allocations={cellAllocations}
+                            onEdit={() => {
+                              const allocation = cellAllocations[0];
+                              if (allocation) {
+                                handleAllocationClick(
+                                  resource.id,
+                                  resource.name,
+                                  week.weekStart,
+                                  allocation,
+                                );
+                              } else {
+                                openEditor(resource.id, resource.name, [week.weekStart]);
+                              }
+                            }}
+                          />
                         </div>
                       </td>
                     );
@@ -563,10 +574,14 @@ export function ProjectTimeline({
 
       <div className="space-y-2">
         <ProjectStatusLegend />
+        <CapacityLoadLegend />
         <p className="text-[11px] font-light text-g500">
-          Jan–Dec 2026 ({data.weeks.length} weeks). Select a project, then click or drag
-          across weeks on a resource row to assign FTE. Hours use each person&apos;s FTE
-          hours/week; cumulative row tracks budget burn.
+          {plannerRangeLabel} ({data.weeks.length} weeks). Select a project, then click or drag
+          across weeks on a resource row to assign FTE. The project dates row shows the
+          scheduled project length; cell fill uses this project&apos;s status; out-of-office
+          shows first (magenta stripes), then allocations build to 100%. Utilisation icons
+          reflect allocations plus out of office for the week. Hours use each person&apos;s
+          FTE hours/week; cumulative row tracks budget burn.
         </p>
       </div>
     </div>

@@ -3,7 +3,7 @@
 import { Pencil } from "lucide-react";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { AllocationEditor } from "@/components/planner/allocation-editor";
-import { ResourceExternalTag } from "@/components/ui/resource-tags";
+import { PlannerResourceLabel } from "@/components/planner/planner-resource-label";
 import {
   editorAssignmentRowsForWeeks,
   type EditorAssignmentRow,
@@ -12,12 +12,7 @@ import type {
   ByResourcePlannerData,
   PlannerAllocation,
 } from "@/lib/queries/planner";
-import {
-  describeOutOfOfficeSegments,
-  PLANNER_OOO_STRIPE_CLASS,
-  PLANNER_WORK_DAYS,
-  type OutOfOfficeDaySegment,
-} from "@/lib/planner-out-of-office";
+import { PlannerOooFill } from "@/components/planner/planner-ooo-fill";
 import { ProjectStatusLegend } from "@/components/planner/project-status-legend";
 import {
   PlannerTimelineScroll,
@@ -28,11 +23,15 @@ import {
 import { CapacityLoadIndicator, CapacityLoadLegend } from "@/components/planner/capacity-load-indicator";
 import { StatusCapacityFill } from "@/components/planner/status-capacity-fill";
 import {
-  fteLoadLevelForAllocations,
+  fteLoadLabel,
+  fteLoadLevelForResourceWeek,
+  outOfOfficeFteEquivalent,
   totalAllocatedFte,
+  totalResourceLoadFte,
 } from "@/lib/planner-capacity";
+import { outOfOfficeWidthPercent, type OutOfOfficeDaySegment } from "@/lib/planner-out-of-office";
 import { projectStatusLabel } from "@/lib/project-status";
-import type { WeekColumn, WeekPhase } from "@/lib/weeks";
+import { plannerViewRangeLabel, type WeekColumn, type WeekPhase } from "@/lib/weeks";
 
 type Selection = {
   resourceId: string;
@@ -59,32 +58,6 @@ function weekRangeBetween(
   return weekStarts.slice(start, end + 1);
 }
 
-function OooSegments({ segments }: { segments: OutOfOfficeDaySegment[] }) {
-  if (segments.length === 0) return null;
-
-  return (
-    <>
-      {segments.map((segment) => {
-        const leftPercent = (segment.startDayIndex / PLANNER_WORK_DAYS) * 100;
-        const widthPercent = (segment.dayCount / PLANNER_WORK_DAYS) * 100;
-
-        return (
-          <span
-            key={`${segment.startDayIndex}-${segment.dayCount}`}
-            className="pointer-events-none absolute inset-y-0 z-[1] overflow-hidden"
-            style={{ left: `${leftPercent}%`, width: `${widthPercent}%` }}
-            title={describeOutOfOfficeSegments([segment])}
-          >
-            <span className="block h-full bg-magenta/10">
-              <span className={`block h-full ${PLANNER_OOO_STRIPE_CLASS}`} />
-            </span>
-          </span>
-        );
-      })}
-    </>
-  );
-}
-
 function cellAllocationTitle(allocations: PlannerAllocation[]): string {
   return allocations
     .map(
@@ -94,7 +67,7 @@ function cellAllocationTitle(allocations: PlannerAllocation[]): string {
     .join("\n");
 }
 
-function CellEditAffordance({
+export function CellEditAffordance({
   allocations,
   onEdit,
 }: {
@@ -124,6 +97,10 @@ function CellEditAffordance({
 
 export function ResourceTimeline({ data }: { data: ByResourcePlannerData }) {
   const { scrollWeekStart, getPhase } = usePlannerWeekPhases(data.weeks);
+  const plannerRangeLabel = useMemo(
+    () => plannerViewRangeLabel(data.weeks),
+    [data.weeks],
+  );
   const weekStarts = useMemo(
     () => data.weeks.map((week) => week.weekStart),
     [data.weeks],
@@ -279,10 +256,11 @@ export function ResourceTimeline({ data }: { data: ByResourcePlannerData }) {
                     scope="row"
                     className="sticky left-0 z-10 border-r border-g200 bg-surface px-4 py-2 text-left font-medium text-ink"
                   >
-                    <span className="flex flex-wrap items-center gap-1.5">
-                      {resource.name}
-                      {resource.isExternal ? <ResourceExternalTag /> : null}
-                    </span>
+                    <PlannerResourceLabel
+                      name={resource.name}
+                      roleName={resource.roleName}
+                      isExternal={resource.isExternal}
+                    />
                   </th>
                   {data.weeks.map((week) => {
                     const key = cellKey(resource.id, week.weekStart);
@@ -291,8 +269,20 @@ export function ResourceTimeline({ data }: { data: ByResourcePlannerData }) {
                     const oooSegments = oooSegmentsByCell.get(key) ?? [];
                     const cellAllocations = allocationsByCell.get(key) ?? [];
                     const capacity = Number(resource.defaultFte) || 1;
-                    const totalFte = totalAllocatedFte(cellAllocations);
-                    const loadLevel = fteLoadLevelForAllocations(cellAllocations);
+                    const allocatedFte = totalAllocatedFte(cellAllocations);
+                    const oooFte = outOfOfficeFteEquivalent(oooSegments, capacity);
+                    const totalLoadFte = totalResourceLoadFte(
+                      cellAllocations,
+                      oooSegments,
+                      capacity,
+                    );
+                    const loadLevel = fteLoadLevelForResourceWeek(
+                      cellAllocations,
+                      oooSegments,
+                      capacity,
+                    );
+                    const loadContext = { allocatedFte, oooFte };
+                    const oooWidthPercent = outOfOfficeWidthPercent(oooSegments);
 
                     return (
                       <td
@@ -309,12 +299,18 @@ export function ResourceTimeline({ data }: { data: ByResourcePlannerData }) {
                           handlePointerEnter(resource.id, week.weekStart)
                         }
                       >
+                        <PlannerOooFill segments={oooSegments} />
                         <StatusCapacityFill
                           allocations={cellAllocations}
                           capacity={capacity}
+                          leftOffsetPercent={oooWidthPercent}
+                          loadLevel={loadLevel}
                         />
-                        <CapacityLoadIndicator level={loadLevel} totalFte={totalFte} />
-                        <OooSegments segments={oooSegments} />
+                        <CapacityLoadIndicator
+                          level={loadLevel}
+                          totalFte={totalLoadFte}
+                          title={fteLoadLabel(loadLevel, totalLoadFte, loadContext)}
+                        />
                         <div className="group/cell relative z-[2] min-h-[36px]">
                           <CellEditAffordance
                             allocations={cellAllocations}
@@ -340,9 +336,10 @@ export function ResourceTimeline({ data }: { data: ByResourcePlannerData }) {
         <ProjectStatusLegend />
         <CapacityLoadLegend />
         <p className="text-[11px] font-light text-g500">
-          Jan–Dec 2026 ({data.weeks.length} weeks). Click or drag across weeks to edit
+          {plannerRangeLabel} ({data.weeks.length} weeks). Click or drag across weeks to edit
           allocations. Cell fill uses project status (active, planned, pipeline,
-          etc.); magenta stripes show out-of-office. Hover an allocated week to edit.
+          etc.); magenta stripes show out-of-office first, then allocations build
+          to 100%. Hover an allocated week to edit.
         </p>
       </div>
     </div>
