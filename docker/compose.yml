@@ -1,0 +1,25 @@
+# Postgres for Resource Manager — runs on Mac Mini
+# Dev app on MacBook connects via Tailscale; prod app on Mac Mini uses Docker network.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: resource-manager-db
+    restart: unless-stopped
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init:/docker-entrypoint-initdb.d
+    environment:
+      POSTGRES_USER: rm_admin
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: postgres
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U rm_admin -d postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
