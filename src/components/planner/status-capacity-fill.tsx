@@ -48,7 +48,8 @@ export function StatusCapacityFill({
     if (fte <= 0) continue;
     segments.push({
       status,
-      widthPercent: (fte / totalFte) * fillWidthPercent,
+      // Partition the outer fill (already sized to fillWidthPercent), not the full cell.
+      widthPercent: (fte / totalFte) * 100,
     });
   }
 

@@ -1,6 +1,6 @@
 export { getAllocationsInRange } from "./allocations";
 export { checkDatabaseConnection } from "./connection";
-export { getDashboardStats } from "./dashboard";
+export { getDashboardInsights, getDashboardStats } from "./dashboard";
 export { getByResourcePlannerData } from "./planner";
 export { getOutOfOffice } from "./out-of-office";
 export { getProjects } from "./projects";
