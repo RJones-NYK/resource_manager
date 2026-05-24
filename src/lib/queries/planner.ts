@@ -1,4 +1,4 @@
-import { asc, eq } from "drizzle-orm";
+import { and, asc, eq, gte, lte } from "drizzle-orm";
 import { getDb } from "@/db";
 import { outOfOffice, resources } from "@/db/schema";
 import { formatResourceName } from "@/lib/resources";
@@ -81,6 +81,10 @@ export async function getByResourcePlannerData(): Promise<ByResourcePlannerData>
     getProjects(),
     getAllocationsInRange(rangeStart, rangeEnd),
     db.query.outOfOffice.findMany({
+      where: and(
+        lte(outOfOffice.startDate, rangeEnd),
+        gte(outOfOffice.endDate, rangeStart),
+      ),
       orderBy: [asc(outOfOffice.startDate)],
     }),
   ]);
@@ -144,6 +148,10 @@ export async function getByProjectPlannerData(): Promise<ByProjectPlannerData> {
     getProjects(),
     getAllocationsInRange(rangeStart, rangeEnd),
     db.query.outOfOffice.findMany({
+      where: and(
+        lte(outOfOffice.startDate, rangeEnd),
+        gte(outOfOffice.endDate, rangeStart),
+      ),
       orderBy: [asc(outOfOffice.startDate)],
     }),
   ]);

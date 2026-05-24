@@ -20,13 +20,9 @@ import {
   projectStatusLabel,
 } from "@/lib/project-status";
 
-const statusOptions: { value: ProjectStatus; label: string }[] = [
-  "pipeline",
-  "planned",
-  "active",
-  "on_hold",
-  "complete",
-].map((value) => ({ value, label: projectStatusLabel(value) }));
+const statusOptions: { value: ProjectStatus; label: string }[] = (
+  ["pipeline", "planned", "active", "on_hold", "complete"] as const
+).map((value) => ({ value, label: projectStatusLabel(value) }));
 
 type Project = {
   id: string;

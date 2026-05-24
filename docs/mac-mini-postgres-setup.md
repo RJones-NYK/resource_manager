@@ -258,17 +258,57 @@ Change `POSTGRES_PORT` in `docker/.env` to e.g. `5433`, then update connection s
 
 ---
 
-## What happens next (app development)
+## Access control (no app login)
 
-Once Postgres is running and migrations are applied on **dev**:
+Resource Manager does not implement users or passwords. Security relies on:
 
-1. Build CRUD for roles, resources, projects
-2. Wire up weekly FTE allocation entry
-3. Replace placeholder timeline views with real data
-4. Add out-of-office overlays and budget tracking
-5. Deploy Next.js app container to Mac Mini pointing at **prod**
+- Postgres and (when deployed) the Next.js app being reachable **only on the Tailscale tailnet**
+- A strong database password in `docker/.env`
+- Optional **Tailscale ACLs** to limit which devices can reach the Mac Mini
 
-See the main [README](../README.md) for app development commands.
+Do not port-forward Postgres or the app to the public internet without adding application auth.
+
+---
+
+## Promote dev data to prod
+
+When you are ready to use real data in production (e.g. after planning in `resource_manager_dev`), copy the dev database into prod on the Mac Mini.
+
+**1. Ensure both databases exist and migrations are applied on both:**
+
+```bash
+cd ~/resource_manager   # or your clone path
+npm run db:migrate      # with DATABASE_URL pointing at dev, then repeat for prod
+```
+
+**2. Dump dev and restore into prod (on Mac Mini, from `docker/`):**
+
+```bash
+# Dump dev (custom format — easy to restore with clean)
+docker compose exec -T postgres pg_dump -U rm_admin -Fc resource_manager_dev > /tmp/rm_dev.dump
+
+# Replace prod contents (destructive — backs up prod first if you care)
+docker compose exec -T postgres pg_dump -U rm_admin -Fc resource_manager_prod > /tmp/rm_prod_backup_$(date +%Y%m%d).dump
+
+docker compose exec -T postgres dropdb -U rm_admin resource_manager_prod
+docker compose exec -T postgres createdb -U rm_admin -O rm_admin resource_manager_prod
+docker compose exec -T postgres pg_restore -U rm_admin -d resource_manager_prod --no-owner --role=rm_admin < /tmp/rm_dev.dump
+```
+
+**3. Point production app at prod:**
+
+Set `DATABASE_URL` to `resource_manager_prod` and `APP_ENV=production` in the Mac Mini app environment (not on `.env.local` committed to git).
+
+**4. Keep using dev for experiments**
+
+After promotion, `resource_manager_dev` is unchanged. You can drop and recreate dev later, or refresh it from prod with the same dump/restore steps in reverse.
+
+---
+
+## What happens next
+
+- Run the app against **prod** on the Mac Mini when you want a always-on URL on the tailnet (`npm run build && npm run start`, or a process manager — not yet scripted in this repo).
+- See the main [README](../README.md) for app commands and the Tailscale access model.
 
 ---
 

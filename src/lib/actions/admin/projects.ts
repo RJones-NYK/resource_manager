@@ -9,6 +9,7 @@ import {
   isActionError,
   parseOptionalNumber,
   requiredText,
+  parseZohoUrl,
   trimOrNull,
 } from "./types";
 import { revalidateAfterAdminChange, revalidateAdminExtras } from "./revalidate";
@@ -47,7 +48,8 @@ export async function createProject(
     formData.get("totalHoursBudgeted"),
   );
   const notes = trimOrNull(formData.get("notes"));
-  const zohoUrl = trimOrNull(formData.get("zohoUrl"));
+  const zohoUrl = parseZohoUrl(formData.get("zohoUrl"));
+  if (isActionError(zohoUrl)) return zohoUrl;
 
   try {
     const db = getDb();
@@ -90,7 +92,8 @@ export async function updateProject(
     formData.get("totalHoursBudgeted"),
   );
   const notes = trimOrNull(formData.get("notes"));
-  const zohoUrl = trimOrNull(formData.get("zohoUrl"));
+  const zohoUrl = parseZohoUrl(formData.get("zohoUrl"));
+  if (isActionError(zohoUrl)) return zohoUrl;
 
   try {
     const db = getDb();

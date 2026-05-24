@@ -141,6 +141,10 @@ export async function getDashboardInsights(): Promise<DashboardInsights> {
       with: { project: true },
     }),
     db.query.outOfOffice.findMany({
+      where: and(
+        lte(outOfOffice.startDate, budgetRangeEnd),
+        gte(outOfOffice.endDate, weekStart),
+      ),
       orderBy: [asc(outOfOffice.startDate)],
     }),
     db.query.projects.findMany({

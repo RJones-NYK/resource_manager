@@ -8,86 +8,16 @@ import {
   isActionError,
   requiredText,
 } from "@/lib/actions/admin/types";
+import {
+  type AllocationActionState,
+  type AssignmentRow,
+  parseAssignmentRows,
+  parseFte,
+  parseWeekStarts,
+} from "@/lib/allocation-validation";
 import { revalidatePath } from "next/cache";
 
-export type AllocationActionState = {
-  error?: string;
-  success?: boolean;
-};
-
-function parseFte(value: FormDataEntryValue | null): number | { error: string } {
-  const text = String(value ?? "").trim();
-  if (!text) {
-    return { error: "Select an FTE amount" };
-  }
-  const fte = Number(text);
-  if (Number.isNaN(fte) || fte < 0 || fte > 1) {
-    return { error: "FTE must be between 0 and 1" };
-  }
-  const rounded = Math.round(fte * 10) / 10;
-  if (Math.abs(rounded - fte) > 0.001) {
-    return { error: "FTE must be in 0.1 increments" };
-  }
-  return rounded;
-}
-
-type AssignmentRow = { projectId: string; fte: number };
-
-function parseAssignmentRows(
-  value: FormDataEntryValue | null,
-): AssignmentRow[] | { error: string } {
-  const text = String(value ?? "").trim();
-  if (!text) {
-    return [];
-  }
-  try {
-    const parsed = JSON.parse(text) as unknown;
-    if (!Array.isArray(parsed)) {
-      return { error: "Invalid assignment rows" };
-    }
-    const rows: AssignmentRow[] = [];
-    const seen = new Set<string>();
-    for (const item of parsed) {
-      if (
-        typeof item !== "object" ||
-        item === null ||
-        typeof (item as { projectId?: unknown }).projectId !== "string"
-      ) {
-        return { error: "Invalid assignment rows" };
-      }
-      const projectId = (item as { projectId: string }).projectId.trim();
-      if (!projectId || seen.has(projectId)) continue;
-      seen.add(projectId);
-      const fte = parseFte(
-        (item as { fte?: unknown }).fte as FormDataEntryValue | null,
-      );
-      if (isActionError(fte)) return fte;
-      rows.push({ projectId, fte });
-    }
-    return rows;
-  } catch {
-    return { error: "Invalid assignment rows" };
-  }
-}
-
-function parseWeekStarts(value: FormDataEntryValue | null): string[] | { error: string } {
-  const text = String(value ?? "").trim();
-  if (!text) {
-    return { error: "No weeks selected" };
-  }
-  try {
-    const parsed = JSON.parse(text) as unknown;
-    if (!Array.isArray(parsed) || parsed.length === 0) {
-      return { error: "No weeks selected" };
-    }
-    if (!parsed.every((item) => typeof item === "string" && /^\d{4}-\d{2}-\d{2}$/.test(item))) {
-      return { error: "Invalid week selection" };
-    }
-    return parsed;
-  } catch {
-    return { error: "Invalid week selection" };
-  }
-}
+export type { AllocationActionState };
 
 function revalidatePlanner() {
   revalidatePath("/");
@@ -103,22 +33,41 @@ async function replaceWeekAssignments(
   const db = getDb();
   const positiveRows = rows.filter((row) => row.fte > 0);
 
-  for (const weekStart of weekStarts) {
-    await db
-      .delete(allocations)
-      .where(
-        and(eq(allocations.resourceId, resourceId), eq(allocations.weekStart, weekStart)),
-      );
+  await db.transaction(async (tx) => {
+    for (const weekStart of weekStarts) {
+      await tx
+        .delete(allocations)
+        .where(
+          and(
+            eq(allocations.resourceId, resourceId),
+            eq(allocations.weekStart, weekStart),
+          ),
+        );
 
-    for (const row of positiveRows) {
-      await db.insert(allocations).values({
-        resourceId,
-        projectId: row.projectId,
-        weekStart,
-        fteAllocated: row.fte.toFixed(1),
-      });
+      for (const row of positiveRows) {
+        const fteText = row.fte.toFixed(1);
+        await tx
+          .insert(allocations)
+          .values({
+            resourceId,
+            projectId: row.projectId,
+            weekStart,
+            fteAllocated: fteText,
+          })
+          .onConflictDoUpdate({
+            target: [
+              allocations.resourceId,
+              allocations.projectId,
+              allocations.weekStart,
+            ],
+            set: {
+              fteAllocated: fteText,
+              updatedAt: new Date(),
+            },
+          });
+      }
     }
-  }
+  });
 }
 
 async function saveSingleProjectAllocation(
@@ -129,41 +78,43 @@ async function saveSingleProjectAllocation(
 ): Promise<void> {
   const db = getDb();
 
-  if (fte === 0) {
-    await db
-      .delete(allocations)
-      .where(
-        and(
-          eq(allocations.resourceId, resourceId),
-          eq(allocations.projectId, projectId),
-          inArray(allocations.weekStart, weekStarts),
-        ),
-      );
-    return;
-  }
+  await db.transaction(async (tx) => {
+    if (fte === 0) {
+      await tx
+        .delete(allocations)
+        .where(
+          and(
+            eq(allocations.resourceId, resourceId),
+            eq(allocations.projectId, projectId),
+            inArray(allocations.weekStart, weekStarts),
+          ),
+        );
+      return;
+    }
 
-  const fteText = fte.toFixed(1);
-  for (const weekStart of weekStarts) {
-    await db
-      .insert(allocations)
-      .values({
-        resourceId,
-        projectId,
-        weekStart,
-        fteAllocated: fteText,
-      })
-      .onConflictDoUpdate({
-        target: [
-          allocations.resourceId,
-          allocations.projectId,
-          allocations.weekStart,
-        ],
-        set: {
+    const fteText = fte.toFixed(1);
+    for (const weekStart of weekStarts) {
+      await tx
+        .insert(allocations)
+        .values({
+          resourceId,
+          projectId,
+          weekStart,
           fteAllocated: fteText,
-          updatedAt: new Date(),
-        },
-      });
-  }
+        })
+        .onConflictDoUpdate({
+          target: [
+            allocations.resourceId,
+            allocations.projectId,
+            allocations.weekStart,
+          ],
+          set: {
+            fteAllocated: fteText,
+            updatedAt: new Date(),
+          },
+        });
+    }
+  });
 }
 
 export async function saveAllocations(
@@ -199,4 +150,3 @@ export async function saveAllocations(
     return { error: dbErrorMessage(error, "Failed to save allocations") };
   }
 }
-

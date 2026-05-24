@@ -131,6 +131,7 @@ function AllocationChip({
   return (
     <button
       type="button"
+      onPointerDown={(event) => event.stopPropagation()}
       onClick={(event) => {
         event.stopPropagation();
         onSelect();
@@ -434,6 +435,7 @@ export function ProjectTimeline({
 
       {selection && selectedProject && (
         <AllocationEditor
+          key={`${selection.resourceId}:${selection.weekStarts.join(",")}`}
           selection={selection}
           projects={data.projects}
           fixedProject={selectedProject}

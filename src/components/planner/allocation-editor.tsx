@@ -56,6 +56,16 @@ function ResourceAssignmentRows({
     onChange(rows.map((row, i) => (i === index ? { ...row, ...patch } : row)));
   };
 
+  const selectNewProject = (projectId: string) => {
+    const next = rows.map((row, i) =>
+      i === newRowIndex ? { ...row, projectId } : row,
+    );
+    if (projectId.trim() && !next.some((row) => !row.projectId)) {
+      next.push({ projectId: "", fte: "0.5" });
+    }
+    onChange(next);
+  };
+
   const removeRow = (index: number) => {
     const next = rows.filter((_, i) => i !== index);
     if (!next.some((row) => !row.projectId)) {
@@ -130,7 +140,7 @@ function ResourceAssignmentRows({
             <SelectInput
               id="allocation-project-new"
               value={rows[newRowIndex]?.projectId ?? ""}
-              onChange={(event) => updateRow(newRowIndex, { projectId: event.target.value })}
+              onChange={(event) => selectNewProject(event.target.value)}
               options={projectOptions}
             />
           </div>

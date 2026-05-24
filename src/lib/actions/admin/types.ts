@@ -101,12 +101,30 @@ export function isActionError(value: unknown): value is { error: string } {
   return typeof value === "object" && value !== null && "error" in value;
 }
 
+export function parseZohoUrl(
+  value: FormDataEntryValue | null,
+): string | null | { error: string } {
+  const text = trimOrNull(value);
+  if (!text) return null;
+  try {
+    const url = new URL(text);
+    if (url.protocol !== "https:") {
+      return { error: "Zoho URL must use https" };
+    }
+    return text;
+  } catch {
+    return { error: "Enter a valid https URL" };
+  }
+}
+
 export function dbErrorMessage(error: unknown, fallback: string): string {
   if (error instanceof Error) {
     if (error.message.includes("unique") || error.message.includes("duplicate")) {
       return "That name already exists";
     }
-    return error.message;
+    console.error(error);
+  } else if (error) {
+    console.error(error);
   }
   return fallback;
 }
