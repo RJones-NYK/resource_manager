@@ -1,10 +1,21 @@
 import {
+  fteLoadLevel,
+  totalAllocatedFte,
+  type FteLoadLevel,
+} from "@/lib/planner-capacity";
+import {
   PROJECT_STATUS_ORDER,
   projectStatusFillClassName,
   projectStatusLabel,
   type ProjectStatus,
 } from "@/lib/project-status";
 import type { PlannerAllocation } from "@/lib/queries/planner";
+
+function fillSegmentClass(loadLevel: FteLoadLevel, status: ProjectStatus): string {
+  if (loadLevel === "warning") return "bg-magenta/25";
+  if (loadLevel === "notice") return "bg-cyan/20";
+  return projectStatusFillClassName(status);
+}
 
 function fteByStatus(allocations: PlannerAllocation[]): Map<ProjectStatus, number> {
   const map = new Map<ProjectStatus, number>();
@@ -24,13 +35,10 @@ export function StatusCapacityFill({
   allocations: PlannerAllocation[];
   capacity: number;
 }) {
-  const totalFte = allocations.reduce(
-    (sum, allocation) => sum + Number(allocation.fteAllocated),
-    0,
-  );
+  const totalFte = totalAllocatedFte(allocations);
   if (totalFte <= 0 || capacity <= 0) return null;
 
-  const isOverAllocated = totalFte > capacity + 0.001;
+  const loadLevel = fteLoadLevel(totalFte);
   const fillWidthPercent = Math.min((totalFte / capacity) * 100, 100);
   const byStatus = fteByStatus(allocations);
 
@@ -55,7 +63,13 @@ export function StatusCapacityFill({
     <span
       className="pointer-events-none absolute inset-y-0 left-0 z-0 overflow-hidden"
       style={{ width: `${fillWidthPercent}%` }}
-      title={`${totalFte.toFixed(1)} / ${capacity.toFixed(1)} FTE — ${breakdown}${isOverAllocated ? " (over-allocated)" : ""}`}
+      title={`${totalFte.toFixed(1)} / ${capacity.toFixed(1)} FTE — ${breakdown}${
+        loadLevel === "warning"
+          ? " (over allocated)"
+          : loadLevel === "notice"
+            ? " (high utilisation)"
+            : ""
+      }`}
     >
       {segments.map(({ status, widthPercent }, index) => {
         const leftPercent = segments
@@ -68,11 +82,7 @@ export function StatusCapacityFill({
             className="absolute inset-y-0 overflow-hidden"
             style={{ left: `${leftPercent}%`, width: `${widthPercent}%` }}
           >
-            <span
-              className={`block h-full ${
-                isOverAllocated ? "bg-magenta/20" : projectStatusFillClassName(status)
-              }`}
-            />
+            <span className={`block h-full ${fillSegmentClass(loadLevel, status)}`} />
           </span>
         );
       })}

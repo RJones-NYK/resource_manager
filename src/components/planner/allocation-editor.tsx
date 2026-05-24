@@ -1,5 +1,6 @@
 "use client";
 
+import { Trash2 } from "lucide-react";
 import { useActionState, useEffect, useMemo, useState } from "react";
 import {
   saveAllocations,
@@ -55,6 +56,17 @@ function ResourceAssignmentRows({
     onChange(rows.map((row, i) => (i === index ? { ...row, ...patch } : row)));
   };
 
+  const removeRow = (index: number) => {
+    const next = rows.filter((_, i) => i !== index);
+    if (!next.some((row) => !row.projectId)) {
+      next.push({ projectId: "", fte: "0.5" });
+    }
+    onChange(next);
+  };
+
+  const projectName = (projectId: string) =>
+    projects.find((project) => project.id === projectId)?.name ?? "assignment";
+
   const existingRows = rows.filter((row) => row.projectId);
   const newRowIndex = rows.findIndex((row) => !row.projectId);
 
@@ -91,6 +103,19 @@ function ResourceAssignmentRows({
                     onChange={(event) => updateRow(index, { fte: event.target.value })}
                     options={fteOptions}
                   />
+                </div>
+                <div className="flex shrink-0 flex-col">
+                  <span className="field-label invisible" aria-hidden>
+                    Remove
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => removeRow(index)}
+                    className="inline-flex h-[38px] w-[38px] items-center justify-center rounded-lg text-g500 transition hover:bg-magenta-soft hover:text-magenta focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal"
+                    aria-label={`Remove ${projectName(row.projectId)}`}
+                  >
+                    <Trash2 className="h-4 w-4" aria-hidden />
+                  </button>
                 </div>
               </div>
             );
@@ -279,8 +304,8 @@ export function AllocationEditor({
       <p className="mt-3 text-[11px] font-light text-g500">
         {resourceMode ? (
           <>
-            Set FTE to 0 to remove a project from the selected week
-            {weekCount === 1 ? "" : "s"}. Changes apply to every selected week.
+            Use the delete control or set FTE to 0 to remove a project. Changes apply
+            to every selected week.
           </>
         ) : (
           <>

@@ -37,11 +37,26 @@ export function plannerWeekHeaderClassName(phase: WeekPhase): string {
   return base;
 }
 
-export function plannerWeekCellClassName(phase: WeekPhase, isSelected: boolean): string {
+export function plannerWeekCellClassName(
+  phase: WeekPhase,
+  isSelected: boolean,
+  loadLevel: "normal" | "notice" | "warning" = "normal",
+): string {
   const base =
     "relative min-w-[52px] max-w-[52px] border-r border-g200/60 px-0.5 py-1 align-top transition-colors select-none";
+  const loadRing =
+    loadLevel === "warning"
+      ? "ring-1 ring-inset ring-magenta/45"
+      : loadLevel === "notice"
+        ? "ring-1 ring-inset ring-cyan/35"
+        : "";
   if (isSelected) {
     return `${base} bg-teal-soft ring-1 ring-inset ring-teal/40`;
+  }
+  if (loadRing) {
+    const loadBg =
+      loadLevel === "warning" ? "bg-magenta-soft/40" : "bg-cyan/5";
+    return `${base} ${loadBg} ${loadRing}`;
   }
   if (phase === "past") {
     return `${base} bg-g50/70 hover:bg-g50`;

@@ -25,8 +25,13 @@ import {
   plannerWeekHeaderClassName,
   usePlannerWeekPhases,
 } from "@/components/planner/planner-timeline-scroll";
+import { CapacityLoadIndicator, CapacityLoadLegend } from "@/components/planner/capacity-load-indicator";
 import { StatusCapacityFill } from "@/components/planner/status-capacity-fill";
-import { projectStatusChipClassName, projectStatusLabel } from "@/lib/project-status";
+import {
+  fteLoadLevelForAllocations,
+  totalAllocatedFte,
+} from "@/lib/planner-capacity";
+import { projectStatusLabel } from "@/lib/project-status";
 import type { WeekColumn, WeekPhase } from "@/lib/weeks";
 
 type Selection = {
@@ -80,30 +85,39 @@ function OooSegments({ segments }: { segments: OutOfOfficeDaySegment[] }) {
   );
 }
 
-function AllocationChip({
-  allocation,
-  colorClass,
-  onSelect,
+function cellAllocationTitle(allocations: PlannerAllocation[]): string {
+  return allocations
+    .map(
+      (allocation) =>
+        `${allocation.projectName} (${projectStatusLabel(allocation.projectStatus)}) — ${allocation.fteAllocated} FTE`,
+    )
+    .join("\n");
+}
+
+function CellEditAffordance({
+  allocations,
+  onEdit,
 }: {
-  allocation: PlannerAllocation;
-  colorClass: string;
-  onSelect: () => void;
+  allocations: PlannerAllocation[];
+  onEdit: () => void;
 }) {
+  if (allocations.length === 0) return null;
+
   return (
     <button
       type="button"
+      onPointerDown={(event) => event.stopPropagation()}
       onClick={(event) => {
         event.stopPropagation();
-        onSelect();
+        onEdit();
       }}
-      className={`group/chip relative mb-0.5 flex w-full items-center justify-between gap-1 rounded border px-1.5 py-0.5 text-[10px] font-medium leading-tight ${colorClass}`}
-      title={`${allocation.projectName} (${projectStatusLabel(allocation.projectStatus)}) — ${allocation.fteAllocated} FTE`}
+      className="absolute inset-0 z-[2] flex items-center justify-center opacity-0 transition-opacity group-hover/cell:opacity-100 focus-visible:opacity-100"
+      title={cellAllocationTitle(allocations)}
+      aria-label="Edit allocation"
     >
-      <span>{allocation.fteAllocated}</span>
-      <Pencil
-        className="h-2.5 w-2.5 shrink-0 opacity-0 transition-opacity group-hover/chip:opacity-70"
-        aria-hidden
-      />
+      <span className="flex h-5 w-5 items-center justify-center rounded-full border border-g200 bg-surface/95 text-g500 shadow-sm">
+        <Pencil className="h-2.5 w-2.5" strokeWidth={2.25} aria-hidden />
+      </span>
     </button>
   );
 }
@@ -277,11 +291,17 @@ export function ResourceTimeline({ data }: { data: ByResourcePlannerData }) {
                     const oooSegments = oooSegmentsByCell.get(key) ?? [];
                     const cellAllocations = allocationsByCell.get(key) ?? [];
                     const capacity = Number(resource.defaultFte) || 1;
+                    const totalFte = totalAllocatedFte(cellAllocations);
+                    const loadLevel = fteLoadLevelForAllocations(cellAllocations);
 
                     return (
                       <td
                         key={week.weekStart}
-                        className={plannerWeekCellClassName(weekPhase, isSelected)}
+                        className={plannerWeekCellClassName(
+                          weekPhase,
+                          isSelected,
+                          isSelected ? "normal" : loadLevel,
+                        )}
                         onPointerDown={() =>
                           handlePointerDown(resource.id, resource.name, week.weekStart)
                         }
@@ -293,24 +313,19 @@ export function ResourceTimeline({ data }: { data: ByResourcePlannerData }) {
                           allocations={cellAllocations}
                           capacity={capacity}
                         />
+                        <CapacityLoadIndicator level={loadLevel} totalFte={totalFte} />
                         <OooSegments segments={oooSegments} />
-                        <div className="relative z-[2] min-h-[36px]">
-                          {cellAllocations.map((allocation) => (
-                              <AllocationChip
-                                key={`${allocation.projectId}-${allocation.weekStart}-${allocation.fteAllocated}`}
-                                allocation={allocation}
-                                colorClass={projectStatusChipClassName(
-                                  allocation.projectStatus,
-                                )}
-                                onSelect={() =>
-                                  handleAllocationClick(
-                                    resource.id,
-                                    resource.name,
-                                    week.weekStart,
-                                  )
-                                }
-                              />
-                          ))}
+                        <div className="group/cell relative z-[2] min-h-[36px]">
+                          <CellEditAffordance
+                            allocations={cellAllocations}
+                            onEdit={() =>
+                              handleAllocationClick(
+                                resource.id,
+                                resource.name,
+                                week.weekStart,
+                              )
+                            }
+                          />
                         </div>
                       </td>
                     );
@@ -323,10 +338,11 @@ export function ResourceTimeline({ data }: { data: ByResourcePlannerData }) {
 
       <div className="space-y-2">
         <ProjectStatusLegend />
+        <CapacityLoadLegend />
         <p className="text-[11px] font-light text-g500">
           Jan–Dec 2026 ({data.weeks.length} weeks). Click or drag across weeks to edit
-          allocations. Cell fill and chips use project status (active, planned,
-          pipeline, etc.); magenta stripes show out-of-office. Hover a chip to edit.
+          allocations. Cell fill uses project status (active, planned, pipeline,
+          etc.); magenta stripes show out-of-office. Hover an allocated week to edit.
         </p>
       </div>
     </div>
